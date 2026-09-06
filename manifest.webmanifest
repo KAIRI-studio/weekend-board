@@ -3,7 +3,7 @@
   "short_name": "WEEKEND",
   "description": "週末のミッションを気持ちよく片づけるTODOボード",
   "id": "./",
-  "start_url": "./?v=12",
+  "start_url": "./?v=11",
   "scope": "./",
   "display": "standalone",
   "background_color": "#071a2e",
