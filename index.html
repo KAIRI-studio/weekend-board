@@ -56,9 +56,8 @@ const key='castor-weekend-v1'; const now=new Date(); const monday=new Date(now);
 let data=JSON.parse(localStorage.getItem(key)||'null');
 if(!data)data={week:weekKey,tasks:defaults.map((x,i)=>({id:Date.now()+i,name:x[0],type:x[1],done:false}))};
 if(data.week!==weekKey){data.tasks=data.tasks.filter(t=>t.type==='routine').map(t=>({...t,done:false}));data.week=weekKey;save()}
-const recoveryKey='castor-weekend-recovery-20260906b';
-const isUntouchedDefault=data.tasks.length===defaults.length&&data.tasks.every(t=>!t.done&&defaults.some(x=>x[0]===t.name&&x[1]===t.type));
-if(!localStorage.getItem(recoveryKey)&&isUntouchedDefault){
+const recoveryKey='castor-weekend-recovery-20260906c';
+if(!localStorage.getItem(recoveryKey)){
  const recovered=[
   ['洗濯','routine',false],['水換え','routine',false],['トリミングうなじ','routine',true],['TV録画','routine',true],
   ['月曜準備','routine',false],['子供爪切り','routine',false],['ソウタ スマホ充電','routine',false],['昼ごはん','routine',false],
@@ -93,7 +92,7 @@ function applyTheme(index){themeIndex=index;const theme=themes[index];document.b
 $('#themeGrid').innerHTML=themes.map((t,i)=>`<button class="theme-choice ${t.full?'full':''}" data-theme="${i}"><img src="${t.image}" alt=""><span>${t.name}</span></button>`).join('');
 document.querySelectorAll('.theme-choice').forEach(b=>b.onclick=()=>{applyTheme(Number(b.dataset.theme));$('#themeDialog').close()});
 $('#themeButton').onclick=()=>$('#themeDialog').showModal();$('#themeClose').onclick=()=>$('#themeDialog').close();applyTheme(themeIndex);
-const appVersion='recovery-1';fetch(`version.json?t=${Date.now()}`,{cache:'no-store'}).then(r=>r.json()).then(v=>{localStorage.setItem('castor-weekend-app-version',v.version);if(v.version!==appVersion&&!location.search.includes(`v=${v.version}`))location.replace(`./?v=${encodeURIComponent(v.version)}`)}).catch(()=>{});
+const appVersion='recovery-2';fetch(`version.json?t=${Date.now()}`,{cache:'no-store'}).then(r=>r.json()).then(v=>{localStorage.setItem('castor-weekend-app-version',v.version);if(v.version!==appVersion&&!location.search.includes(`v=${v.version}`))location.replace(`./?v=${encodeURIComponent(v.version)}`)}).catch(()=>{});
 function nextRipple(){const delay=500+Math.random()*1100;setTimeout(()=>{const main=document.querySelector('main'),layer=$('#rippleLayer');if(!main||!layer)return;const rect=main.getBoundingClientRect();const visibleTop=Math.max(38,-rect.top+38);const visibleBottom=Math.min(main.scrollHeight-38,window.innerHeight-rect.top-95);const ripple=document.createElement('i');ripple.className='water-ripple';ripple.style.left=(8+Math.random()*84)+'%';ripple.style.top=(visibleBottom>visibleTop?visibleTop+Math.random()*(visibleBottom-visibleTop):Math.random()*main.scrollHeight)+'px';layer.appendChild(ripple);setTimeout(()=>{ripple.remove();nextRipple()},3500)},delay)}
 if(!matchMedia('(prefers-reduced-motion: reduce)').matches)nextRipple();
 </script></body></html>
