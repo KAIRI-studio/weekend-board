@@ -52,19 +52,45 @@
 <dialog id="themeDialog" class="theme-dialog"><div class="theme-panel"><div class="theme-panel-head"><h2>PHOTO SELECT</h2><button class="theme-close" id="themeClose" aria-label="閉じる">×</button></div><div class="theme-grid" id="themeGrid"></div></div></dialog><div class="toast" id="toast">WEEKEND CLEAR! ★</div>
 <script>
 const defaults=[['洗濯','routine'],['水換え','routine'],['トリミングうなじ','routine'],['TV録画','routine'],['月曜準備','routine'],['子供爪切り','routine'],['ソウタ スマホ充電','routine'],['エーペックス動画作成','project'],['ホームページ作成','project'],['エディケーショナルゲーム作成','project']];
-const key='castor-weekend-v1'; const now=new Date(); const monday=new Date(now); monday.setDate(now.getDate()-((now.getDay()+6)%7)); const weekKey=monday.toISOString().slice(0,10);
-let data=JSON.parse(localStorage.getItem(key)||'null');
-if(!data)data={week:weekKey,tasks:defaults.map((x,i)=>({id:Date.now()+i,name:x[0],type:x[1],done:false}))};
-if(data.week!==weekKey){data.tasks=data.tasks.filter(t=>t.type==='routine').map(t=>({...t,done:false}));data.week=weekKey;save()}
-const recoveryKey='castor-weekend-recovery-20260906c';
-if(!localStorage.getItem(recoveryKey)){
+const key='castor-weekend-v1';
+const backupKey='castor-weekend-v1-backup';
+const now=new Date();
+const dateKey=date=>`${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`;
+const saturday=new Date(now);saturday.setDate(now.getDate()-((now.getDay()+1)%7));
+const weekendKey=dateKey(saturday);
+const monday=new Date(now);monday.setDate(now.getDate()-((now.getDay()+6)%7));
+const legacyMondayKey=dateKey(monday);
+const cycleMonday=new Date(saturday);cycleMonday.setDate(saturday.getDate()-5);
+const cycleMondayKey=dateKey(cycleMonday);
+function readSaved(storageKey){try{const value=JSON.parse(localStorage.getItem(storageKey)||'null');return value&&Array.isArray(value.tasks)?value:null}catch{return null}}
+let data=readSaved(key)||readSaved(backupKey);
+if(!data)data={week:weekendKey,tasks:defaults.map((x,i)=>({id:Date.now()+i,name:x[0],type:x[1],done:false}))};
+
+// Restore only the two exact reset shapes produced by earlier releases.
+const recoveryKey='castor-weekend-recovery-20260907d';
+const signature=tasks=>tasks.map(t=>`${t.name}|${t.type}|${t.done?'1':'0'}`).sort().join('~');
+const resetByWeek=[
+ ['洗濯','routine',false],['水換え','routine',false],['トリミングうなじ','routine',false],['TV録画','routine',false],
+ ['月曜準備','routine',false],['子供爪切り','routine',false],['ソウタ スマホ充電','routine',false],['昼ごはん','routine',false]
+].map((x,i)=>({id:i,name:x[0],type:x[1],done:x[2]}));
+const resetToDefault=defaults.map((x,i)=>({id:i,name:x[0],type:x[1],done:false}));
+if(!localStorage.getItem(recoveryKey)&&(signature(data.tasks)===signature(resetByWeek)||signature(data.tasks)===signature(resetToDefault))){
  const recovered=[
-  ['洗濯','routine',false],['水換え','routine',false],['トリミングうなじ','routine',true],['TV録画','routine',true],
-  ['月曜準備','routine',false],['子供爪切り','routine',false],['ソウタ スマホ充電','routine',false],['昼ごはん','routine',false],
+  ['洗濯','routine',true],['水換え','routine',true],['トリミングうなじ','routine',true],['TV録画','routine',true],
+  ['月曜準備','routine',true],['子供爪切り','routine',false],['ソウタ スマホ充電','routine',true],['昼ごはん','routine',true],
   ['アイテム立てるやつ','project',false],['断捨離','project',false],['テクノ準備','project',false],['春つば提出物','project',false],['亜鉛サプリ','project',false]
  ];
- data={week:weekKey,tasks:recovered.map((x,i)=>({id:Date.now()+i,name:x[0],type:x[1],done:x[2]}))};
+ data={week:weekendKey,tasks:recovered.map((x,i)=>({id:Date.now()+i,name:x[0],type:x[1],done:x[2]}))};
  localStorage.setItem(recoveryKey,'1');save();
+}
+// A new weekend starts on Saturday. Only weekly missions reset; projects persist.
+// Migrate the current Monday-based key without resetting a second time.
+const saturdayCycleKey='castor-weekend-saturday-cycle-v1';
+if(!localStorage.getItem(saturdayCycleKey)&&(data.week===legacyMondayKey||data.week===cycleMondayKey)){
+ data.week=weekendKey;localStorage.setItem(saturdayCycleKey,'1');save();
+}else if(data.week!==weekendKey){
+ data.tasks=data.tasks.map(t=>t.type==='routine'?{...t,done:false}:t);
+ data.week=weekendKey;save();
 }
 let selected='routine'; const $=s=>document.querySelector(s);
 const themes=[
@@ -78,7 +104,7 @@ const themes=[
  {name:'VERTICAL 03',image:'theme-full-3.jpg',full:true}
 ];
 const savedTheme=Number(localStorage.getItem('castor-weekend-theme')||0);let themeIndex=Number.isInteger(savedTheme)&&savedTheme>=0&&savedTheme<themes.length?savedTheme:0;
-function save(){localStorage.setItem(key,JSON.stringify(data))}
+function save(){const current=localStorage.getItem(key);if(current)localStorage.setItem(backupKey,current);localStorage.setItem(key,JSON.stringify(data))}
 function esc(s){return s.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function card(t){return `<div class="task ${t.done?'done':''}" data-id="${t.id}"><button class="check" aria-label="完了を切り替え">✓</button><div class="label">${esc(t.name)}</div><button class="more" aria-label="削除">×</button></div>`}
 function render(){const active=data.tasks.filter(t=>!t.done),done=data.tasks.filter(t=>t.done);['routine','project'].forEach(type=>{const a=active.filter(t=>t.type===type);$('#'+type).innerHTML=a.length?a.map(card).join(''):'<div class="empty">今週はクリア。</div>';$('#'+type+'Count').textContent=`${a.length}件`});$('#completed').innerHTML=done.map(card).join('');const weekly=data.tasks.filter(t=>t.type==='routine'),weeklyDone=weekly.filter(t=>t.done),total=weekly.length,p=total?Math.round(weeklyDone.length/total*100):0;$('#fill').style.width=p+'%';$('#totalCount').textContent=`${weeklyDone.length} / ${total}`;$('#clearToggle').textContent=`CLEARした項目を見る（${done.length}）${$('#completed').classList.contains('open')?' ↑':' ↓'}`;bind();if(total&&weeklyDone.length===total){$('#toast').classList.add('show');setTimeout(()=>$('#toast').classList.remove('show'),2200)}}
@@ -88,11 +114,11 @@ $('#add').onclick=()=>{$('#dialog').showModal();setTimeout(()=>$('#taskName').fo
 document.querySelectorAll('.type').forEach(b=>b.onclick=()=>{selected=b.dataset.type;document.querySelectorAll('.type').forEach(x=>x.classList.toggle('active',x===b))});
 $('#form').onsubmit=e=>{e.preventDefault();data.tasks.push({id:Date.now(),name:$('#taskName').value.trim(),type:selected,done:false});save();$('#taskName').value='';$('#dialog').close();render()};
 $('#clearToggle').onclick=()=>{$('#completed').classList.toggle('open');render()};render();
-function applyTheme(index){themeIndex=index;const theme=themes[index];document.body.classList.toggle('full-photo',!!theme.full);document.body.classList.toggle('yuigahama-photo',index===0);document.body.style.setProperty('--full-wallpaper',`url('${theme.image}?v=photo-fix-1')`);document.querySelector('header').style.setProperty('--hero',`url('${theme.image}?v=photo-fix-1')`);localStorage.setItem('castor-weekend-theme',index);document.querySelectorAll('.theme-choice').forEach((b,i)=>b.classList.toggle('active',i===index))}
+function applyTheme(index){themeIndex=index;const theme=themes[index];document.body.classList.toggle('full-photo',!!theme.full);document.body.classList.toggle('yuigahama-photo',index===0);document.body.style.setProperty('--full-wallpaper',`url('${theme.image}?v=state-guard-1')`);document.querySelector('header').style.setProperty('--hero',`url('${theme.image}?v=state-guard-1')`);localStorage.setItem('castor-weekend-theme',index);document.querySelectorAll('.theme-choice').forEach((b,i)=>b.classList.toggle('active',i===index))}
 $('#themeGrid').innerHTML=themes.map((t,i)=>`<button class="theme-choice ${t.full?'full':''}" data-theme="${i}"><img src="${t.image}" alt=""><span>${t.name}</span></button>`).join('');
 document.querySelectorAll('.theme-choice').forEach(b=>b.onclick=()=>{applyTheme(Number(b.dataset.theme));$('#themeDialog').close()});
 $('#themeButton').onclick=()=>$('#themeDialog').showModal();$('#themeClose').onclick=()=>$('#themeDialog').close();applyTheme(themeIndex);
-const appVersion='photo-fix-1';fetch(`version.json?t=${Date.now()}`,{cache:'no-store'}).then(r=>r.json()).then(v=>{localStorage.setItem('castor-weekend-app-version',v.version);if(v.version!==appVersion&&!location.search.includes(`v=${v.version}`))location.replace(`./?v=${encodeURIComponent(v.version)}`)}).catch(()=>{});
+const appVersion='saturday-cycle-1';fetch(`version.json?t=${Date.now()}`,{cache:'no-store'}).then(r=>r.json()).then(v=>{localStorage.setItem('castor-weekend-app-version',v.version);if(v.version!==appVersion&&!location.search.includes(`v=${v.version}`))location.replace(`./?v=${encodeURIComponent(v.version)}`)}).catch(()=>{});
 function nextRipple(){const delay=500+Math.random()*1100;setTimeout(()=>{const main=document.querySelector('main'),layer=$('#rippleLayer');if(!main||!layer)return;const rect=main.getBoundingClientRect();const visibleTop=Math.max(38,-rect.top+38);const visibleBottom=Math.min(main.scrollHeight-38,window.innerHeight-rect.top-95);const ripple=document.createElement('i');ripple.className='water-ripple';ripple.style.left=(8+Math.random()*84)+'%';ripple.style.top=(visibleBottom>visibleTop?visibleTop+Math.random()*(visibleBottom-visibleTop):Math.random()*main.scrollHeight)+'px';layer.appendChild(ripple);setTimeout(()=>{ripple.remove();nextRipple()},3500)},delay)}
 if(!matchMedia('(prefers-reduced-motion: reduce)').matches)nextRipple();
 </script></body></html>
